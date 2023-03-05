@@ -27,7 +27,7 @@ from pathlib import Path
 options = Options()
 options.add_experimental_option('detach', True)
 username = os.getlogin( )
-options.add_argument(r"--user-data-dir=C:\Users\{}\AppData\Local\Google\Chrome\User Data\Default".format(username))
+# options.add_argument(r"--user-data-dir=C:\Users\{}\AppData\Local\Google\Chrome\User Data\Default".format(username))
 options.add_argument("--start-maximized")
 driver = webdriver.Chrome(chrome_options=options)
 # website login url 
@@ -78,7 +78,8 @@ def next_page():
         
 
 def yaml_init():
-    with open('config.yml') as f:  
+    cwd = os.getcwd()
+    with open(r'{}\config.yml'.format(cwd)) as f:  
         data = yaml.load(f, Loader=SafeLoader)
         global username, password, phone_number, position, location, resume_folder, job_details_folder
         
