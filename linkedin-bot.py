@@ -27,7 +27,10 @@ from pathlib import Path
 options = Options()
 options.add_experimental_option('detach', True)
 username = os.getlogin( )
-# options.add_argument(r"--user-data-dir=C:\Users\{}\AppData\Local\Google\Chrome\User Data\Default".format(username))
+try:
+    options.add_argument(r"--user-data-dir=C:\Users\{}\AppData\Local\Google\Chrome\User Data\Default".format(username))
+except:
+    pass
 options.add_argument("--start-maximized")
 driver = webdriver.Chrome(chrome_options=options)
 # website login url 
@@ -50,19 +53,27 @@ def write_to_excel():
     jobTitle = '.jobs-unified-top-card__content--two-pane .jobs-unified-top-card__job-title'
     company = '.jobs-unified-top-card__company-name'
     location = '.jobs-unified-top-card__subtitle-primary-grouping .jobs-unified-top-card__bullet'
+    recruiterName = '.hirer-card__hirer-information .app-aware-link .jobs-poster__name strong' 
+    recruiterLink = '.hirer-card__hirer-information .app-aware-link' 
     
-    jobLinkText = driver.find_element(By.CSS_SELECTOR, jobLink).get_attribute('href')
+    jobLinkHref = driver.find_element(By.CSS_SELECTOR, jobLink).get_attribute('href')
     jobTitleText = driver.find_element(By.CSS_SELECTOR, jobTitle).text
     companyText = driver.find_element(By.CSS_SELECTOR, company).text
     locationText = driver.find_element(By.CSS_SELECTOR, location).text 
+    try: 
+        recruiterText = driver.find_element(By.CSS_SELECTOR, recruiterName).text
+        recruiterHref = driver.find_element(By.CSS_SELECTOR, recruiterLink).get_attribute("href")
+    except:
+        recruiterText = ""
+        recruiterHref = ""
     
     # Writing header for new file if the file doesnt exist
-    if os.path.isfile(filePath) == 'True':
-        df = pd.DataFrame({'Job Title': ['Job Title'], 'Company':['Company'], 'Location': ['Location'], 'Link': ['Link']}) 
-        df.to_csv(filePath, mode='w', index = False)
+    if os.path.isfile(filePath) == 'False':
+        df = pd.DataFrame({'Job Title': ['JOB TITLE'], 'Company':['COMPANY'], 'Location': ['LOCATION'], 'Link': ['LINK'], 'Recruiter': ['RECRUITER']}) 
+        df.to_csv(filePath, mode='w', index = False, header=None)
     
     # Appending into the file     
-    df = pd.DataFrame({'Job Title': [jobTitleText], 'Company':[companyText], 'Location': [locationText], 'Link': [jobLinkText]}) 
+    df = pd.DataFrame({'Job Title': [jobTitleText], 'Company':[companyText], 'Location': [locationText], 'Link': [jobLinkHref], 'Recruiter': [recruiterText + ' | ' + recruiterHref]}) 
     df.to_csv(filePath, mode='a',index = False, header=None)
   
         
@@ -79,7 +90,7 @@ def next_page():
 
 def yaml_init():
     cwd = os.getcwd()
-    with open(r'{}\config.yml'.format(cwd)) as f:  
+    with open(r'{}\linkedin-bot-new\config.yml'.format(cwd)) as f:  
         data = yaml.load(f, Loader=SafeLoader)
         global username, password, phone_number, position, location, resume_folder, job_details_folder
         
@@ -138,6 +149,7 @@ def browse_through_jobs():
     jobLoadTest = '.job-flavors__label'
     jobs = 'li.jobs-search-results__list-item' # Loop through all elements
     
+    time.sleep(1)
     WebDriverWait(driver,20).until(EC.visibility_of_all_elements_located((By.CSS_SELECTOR, jobLoadTest)))
 
     ignored_exceptions=(NoSuchElementException,StaleElementReferenceException,)
