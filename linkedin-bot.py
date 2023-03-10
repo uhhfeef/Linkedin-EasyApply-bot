@@ -21,6 +21,7 @@ from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import ActionChains
+from chatgpt_wrapper import ChatGPT
 import csv
 from pathlib import Path
 
@@ -40,11 +41,13 @@ url = 'https://www.linkedin.com/jobs/'
 def main():
     yaml_init()
     log_in()
-    browse_through_jobs()
+    while(True):
+        browse_through_jobs()
+        next_page() # if doesnt work then u have to break the for loop  
     
 
-
-def write_to_excel():
+def write_to_csv():
+    global filePath, jobTitleText
     filename = r"LinkedIn Applications ({}).csv".format(datetime.datetime.now().strftime("%m-%d-%Y"))
     filePath = r'{}\{}'.format(job_details_folder, filename)
     
@@ -63,19 +66,28 @@ def write_to_excel():
     try: 
         recruiterText = driver.find_element(By.CSS_SELECTOR, recruiterName).text
         recruiterHref = driver.find_element(By.CSS_SELECTOR, recruiterLink).get_attribute("href")
+        chatgpt_request_to_recruiter()
+        connectionRequest = response 
     except:
         recruiterText = ""
         recruiterHref = ""
+        connectionRequest = ""
     
     # Writing header for new file if the file doesnt exist
     if os.path.isfile(filePath) == 'False':
-        df = pd.DataFrame({'Job Title': ['JOB TITLE'], 'Company':['COMPANY'], 'Location': ['LOCATION'], 'Link': ['LINK'], 'Recruiter': ['RECRUITER']}) 
-        df.to_csv(filePath, mode='w', index = False, header=None)
+        df = pd.DataFrame({'Job Title': ['JOB TITLE'], 'Company':['COMPANY'], 'Location': ['LOCATION'], 'Link': ['LINK'], 'Recruiter': ['RECRUITER'], 'Connection Request': ['CONNECTION REQUEST']}) 
+        df.to_csv(filePath, index = False, header=None)
+        df.to_csv(filePath, mode='a',index = False, header=None)
     
     # Appending into the file     
-    df = pd.DataFrame({'Job Title': [jobTitleText], 'Company':[companyText], 'Location': [locationText], 'Link': [jobLinkHref], 'Recruiter': [recruiterText + ' | ' + recruiterHref]}) 
+    df = pd.DataFrame({'Job Title': [jobTitleText], 'Company':[companyText], 'Location': [locationText], 'Link': [jobLinkHref], 'Recruiter': [recruiterText + ' | ' + recruiterHref], 'Connection Request': [connectionRequest ]}) 
     df.to_csv(filePath, mode='a',index = False, header=None)
+    
+   
   
+def convert_to_excel():
+    read_file = pd.read_csv(filePath)
+    read_file.to_excel (filePath, index = None, header=True)
         
 def next_page():
     pages = '.artdeco-pagination__indicator'
@@ -90,7 +102,7 @@ def next_page():
 
 def yaml_init():
     cwd = os.getcwd()
-    with open(r'{}\linkedin-bot-new\config.yml'.format(cwd)) as f:  
+    with open(r'{}\config.yml'.format(cwd)) as f:  
         data = yaml.load(f, Loader=SafeLoader)
         global username, password, phone_number, position, location, resume_folder, job_details_folder
         
@@ -143,6 +155,7 @@ def log_in():
     
     WebDriverWait(driver,20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '[aria-label="Easy Apply filter."]'))).click()
 
+
 def browse_through_jobs():
     global jobs, job_list, job
     
@@ -166,7 +179,6 @@ def browse_through_jobs():
         if job_list.index(job) == len(job_list) - 1:
             break
         
-    next_page() # if doesnt work then u have to break the for loop  
 
 def apply_to_job():
     # elements
@@ -203,7 +215,8 @@ def apply_to_job():
                 long_application()        
             
             close_popup()
-            write_to_excel()
+            write_to_csv()
+           
            
 def long_application():
     # Click first next button
@@ -216,7 +229,7 @@ def long_application():
     try:
         if job_list.index(job) == 0:
             driver.find_element(By.CSS_SELECTOR, upload_resume).click()
-            time.sleep(1)
+            time.sleep(2)
             p.write(resume_folder) 
             p.press('enter')  
             time.sleep(2) # Uploading CV takes time for website to process. click next button after delay otherwise it wont 
@@ -233,7 +246,6 @@ def long_application():
     
     # Review application
     try:
-        time.sleep(5)
         driver.find_element(By.CSS_SELECTOR, review).click()
     except:
         pass
@@ -286,8 +298,6 @@ def short_application():
         WebDriverWait(driver,20).until(EC.presence_of_element_located((By.CSS_SELECTOR, dismiss))).click()
     except:
         pass
-    
-    
   
 
 def close_popup():
@@ -296,6 +306,14 @@ def close_popup():
     except:
         pass
   
+  
+def chatgpt_request_to_recruiter():
+    global response
+    
+    bot = ChatGPT()
+    response = bot.ask("create a custom modern linkedin message template to send to a hiring manager for a connection request message. keep it  simple and unique with 1 paragraph. dont talk about how you're impressed by their profile or anything related to them. keep it strictly job related. the job is {} ".format(jobTitleText))
+    
+
                 
 if __name__ == "__main__": 
     main()
